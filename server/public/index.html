@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code Poker Tournament</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1 class="title">🃏 CLAUDE CODE POKER 🃏</h1>
+      <div class="tournament-info">
+        <span id="handNumber">Hand: 0</span>
+        <span id="phase">Waiting...</span>
+        <button id="startButton" class="start-button">START GAME</button>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <div class="table-container">
+        <div class="poker-table">
+          <!-- Player positions -->
+          <div class="player-slot player-1" id="player-0">
+            <div class="player-info">
+              <div class="player-name">Empty</div>
+              <div class="player-chips">💰 0</div>
+              <div class="player-status"></div>
+            </div>
+            <div class="player-cards">
+              <div class="card card-back">🂠</div>
+              <div class="card card-back">🂠</div>
+            </div>
+          </div>
+
+          <div class="player-slot player-2" id="player-1">
+            <div class="player-info">
+              <div class="player-name">Empty</div>
+              <div class="player-chips">💰 0</div>
+              <div class="player-status"></div>
+            </div>
+            <div class="player-cards">
+              <div class="card card-back">🂠</div>
+              <div class="card card-back">🂠</div>
+            </div>
+          </div>
+
+          <div class="player-slot player-3" id="player-2">
+            <div class="player-info">
+              <div class="player-name">Empty</div>
+              <div class="player-chips">💰 0</div>
+              <div class="player-status"></div>
+            </div>
+            <div class="player-cards">
+              <div class="card card-back">🂠</div>
+              <div class="card card-back">🂠</div>
+            </div>
+          </div>
+
+          <div class="player-slot player-4" id="player-3">
+            <div class="player-info">
+              <div class="player-name">Empty</div>
+              <div class="player-chips">💰 0</div>
+              <div class="player-status"></div>
+            </div>
+            <div class="player-cards">
+              <div class="card card-back">🂠</div>
+              <div class="card card-back">🂠</div>
+            </div>
+          </div>
+
+          <div class="player-slot player-5" id="player-4">
+            <div class="player-info">
+              <div class="player-name">Empty</div>
+              <div class="player-chips">💰 0</div>
+              <div class="player-status"></div>
+            </div>
+            <div class="player-cards">
+              <div class="card card-back">🂠</div>
+              <div class="card card-back">🂠</div>
+            </div>
+          </div>
+
+          <!-- Community cards in center -->
+          <div class="community-cards">
+            <div class="pot-display">
+              <div class="pot-label">POT</div>
+              <div class="pot-amount" id="potAmount">💰 0</div>
+            </div>
+            <div class="community-cards-display" id="communityCards">
+              <div class="card card-empty">?</div>
+              <div class="card card-empty">?</div>
+              <div class="card card-empty">?</div>
+              <div class="card card-empty">?</div>
+              <div class="card card-empty">?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="commentary-panel">
+        <div class="commentary-header">
+          <h2>💬 Live Commentary</h2>
+        </div>
+        <div class="commentary-feed" id="commentaryFeed">
+          <div class="commentary-item system">
+            <span class="commentary-player">System:</span>
+            <span class="commentary-text">Waiting for players to join...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="winner-overlay" id="winnerOverlay" style="display: none;">
+      <div class="winner-content">
+        <h1 class="winner-title">🏆 TOURNAMENT WINNER 🏆</h1>
+        <div class="winner-name" id="winnerName">Player Name</div>
+        <div class="winner-chips" id="winnerChips">💰 Chips</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
