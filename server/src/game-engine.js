@@ -4,6 +4,8 @@ const DeckManager = require('./deck-manager');
 class GameEngine {
   constructor() {
     this.deck = new DeckManager();
+    this.actionQueue = [];
+    this.isProcessingQueue = false;
     this.gameState = {
       gameId: 'tournament-' + Date.now(),
       players: [],
@@ -139,33 +141,76 @@ class GameEngine {
       return { success: false, message: 'Not your turn' };
     }
 
-    player.commentary = commentary;
+    // Queue the action for smooth UI flow
+    this.actionQueue.push({
+      playerId,
+      playerName: player.name,
+      action,
+      amount,
+      commentary,
+      timestamp: Date.now()
+    });
 
-    if (action === 'fold') {
-      player.status = 'folded';
-      player.lastAction = { action: 'fold', amount: 0 };
-    } else if (action === 'call') {
-      const callAmount = Math.min(this.gameState.currentBet - (player.lastAction?.amount || 0), player.chips);
-      player.chips -= callAmount;
-      this.gameState.pot += callAmount;
-      player.lastAction = { action: 'call', amount: callAmount };
-    } else if (action === 'raise') {
-      const totalBet = amount;
-      const raiseAmount = Math.min(totalBet, player.chips);
-      player.chips -= raiseAmount;
-      this.gameState.pot += raiseAmount;
-      this.gameState.currentBet = Math.max(this.gameState.currentBet, raiseAmount);
-      player.lastAction = { action: 'raise', amount: raiseAmount };
+    // Start processing queue if not already running
+    if (!this.isProcessingQueue) {
+      this.processQueue();
     }
 
-    // Check if betting round is complete
-    if (this.isBettingRoundComplete()) {
-      this.advancePhase();
-    } else {
-      this.gameState.activePlayer = this.getNextActivePlayer(this.gameState.activePlayer);
+    return { success: true, queued: true };
+  }
+
+  async processQueue() {
+    if (this.isProcessingQueue || this.actionQueue.length === 0) {
+      return;
     }
 
-    return { success: true, gameState: this.gameState };
+    this.isProcessingQueue = true;
+
+    while (this.actionQueue.length > 0) {
+      const queuedAction = this.actionQueue.shift();
+      const { playerId, action, amount, commentary } = queuedAction;
+
+      const player = this.gameState.players.find(p => p.id === playerId);
+      if (!player) {
+        continue;
+      }
+
+      player.commentary = commentary;
+
+      if (action === 'fold') {
+        player.status = 'folded';
+        player.lastAction = { action: 'fold', amount: 0 };
+      } else if (action === 'call') {
+        const callAmount = Math.min(this.gameState.currentBet - (player.lastAction?.amount || 0), player.chips);
+        player.chips -= callAmount;
+        this.gameState.pot += callAmount;
+        player.lastAction = { action: 'call', amount: callAmount };
+      } else if (action === 'raise') {
+        const totalBet = amount;
+        const raiseAmount = Math.min(totalBet, player.chips);
+        player.chips -= raiseAmount;
+        this.gameState.pot += raiseAmount;
+        this.gameState.currentBet = Math.max(this.gameState.currentBet, raiseAmount);
+        player.lastAction = { action: 'raise', amount: raiseAmount };
+      }
+
+      // Emit action event (will be picked up by server)
+      if (this.onActionProcessed) {
+        this.onActionProcessed(queuedAction, this.gameState);
+      }
+
+      // Smooth delay between actions (600ms for readability)
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      // Check if betting round is complete
+      if (this.isBettingRoundComplete()) {
+        this.advancePhase();
+      } else {
+        this.gameState.activePlayer = this.getNextActivePlayer(this.gameState.activePlayer);
+      }
+    }
+
+    this.isProcessingQueue = false;
   }
 
   isBettingRoundComplete() {
@@ -193,7 +238,7 @@ class GameEngine {
       activePlayers[0].chips += this.gameState.pot;
       this.gameState.phase = 'showdown';
       this.checkEliminations();
-      setTimeout(() => this.startNewHand(), 3000);
+      setTimeout(() => this.startNewHand(), 1000);
       return;
     }
 
@@ -233,7 +278,7 @@ class GameEngine {
       // Everyone else folded
       activePlayers[0].chips += this.gameState.pot;
       this.checkEliminations();
-      setTimeout(() => this.startNewHand(), 5000);
+      setTimeout(() => this.startNewHand(), 1500);
       return;
     }
 

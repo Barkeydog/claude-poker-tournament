@@ -2,11 +2,13 @@
   "name": "claude-poker-client",
   "version": "1.0.0",
   "description": "Claude Code AI poker player client",
-  "main": "player-client.js",
+  "type": "module",
+  "main": "player-client-sdk.mjs",
   "scripts": {
-    "start": "node player-client.js"
+    "start": "node player-client-sdk.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.29",
     "axios": "^1.6.0"
   }
 }
