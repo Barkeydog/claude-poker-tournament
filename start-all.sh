@@ -37,9 +37,9 @@ fi
 
 # Start player manager (single process for all 5 players)
 cd "$BASE_DIR/player-client"
-SERVER_URL=http://localhost:$PORT node --max-old-space-size=256 player-manager.mjs > "$LOG_DIR/players.log" 2>&1 &
+SERVER_URL=http://localhost:$PORT node --max-old-space-size=256 --expose-gc player-manager.mjs > "$LOG_DIR/players.log" 2>&1 &
 PLAYERS_PID=$!
-echo "✅ Player manager started (PID: $PLAYERS_PID, max 256MB RAM, 5 players)"
+echo "✅ Player manager started (PID: $PLAYERS_PID, max 256MB RAM, 5 players, GC enabled)"
 echo "   Logs: $LOG_DIR/players.log"
 sleep 2
 

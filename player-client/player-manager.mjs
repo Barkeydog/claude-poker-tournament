@@ -1,8 +1,13 @@
 import axios from 'axios';
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import { EventEmitter } from 'events';
+
+// Fix event emitter memory leak warning
+EventEmitter.defaultMaxListeners = 20;
+process.setMaxListeners(20);
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
-const POLL_INTERVAL = 1000;
+const POLL_INTERVAL = 2000; // Slower polling to reduce memory pressure
 
 const PLAYER_NAMES = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'];
 
@@ -10,6 +15,7 @@ class PlayerManager {
   constructor() {
     this.players = [];
     this.isRunning = true;
+    this.lastActionTime = Date.now();
   }
 
   async joinAllPlayers() {
@@ -174,6 +180,10 @@ If folding or calling, set "amount" to null.`;
           amount: decision.amount,
           commentary: decision.commentary
         });
+
+        // Wait after action to let queue process
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return 'action-taken';
       }
 
       return 'playing';
@@ -186,48 +196,81 @@ If folding or calling, set "amount" to null.`;
   }
 
   async startGameLoop() {
-    // Memory monitoring
-    setInterval(() => {
+    // Aggressive memory monitoring
+    const memoryInterval = setInterval(() => {
       const usage = process.memoryUsage();
       const heapUsedMB = (usage.heapUsed / 1024 / 1024).toFixed(2);
       const heapTotalMB = (usage.heapTotal / 1024 / 1024).toFixed(2);
+      const rss = (usage.rss / 1024 / 1024).toFixed(2);
 
-      console.log(`💾 Memory: ${heapUsedMB}MB / ${heapTotalMB}MB (${((usage.heapUsed / usage.heapTotal) * 100).toFixed(1)}%)`);
+      console.log(`💾 Memory: ${heapUsedMB}MB heap / ${rss}MB total`);
 
-      if (usage.heapUsed / 1024 / 1024 > 200) {
-        console.log(`⚠️  High memory usage!`);
+      // More aggressive GC trigger
+      if (usage.heapUsed / 1024 / 1024 > 150) {
+        console.log(`⚠️  High memory (${heapUsedMB}MB) - forcing GC`);
         if (global.gc) {
-          console.log('🗑️  Running garbage collection...');
           global.gc();
         }
       }
-    }, 30000);
 
-    // Main game loop - poll for all active players
-    const pollInterval = setInterval(async () => {
-      if (!this.isRunning) {
-        clearInterval(pollInterval);
-        return;
+      // Emergency: Kill if memory exceeds limit
+      if (usage.rss / 1024 / 1024 > 240) {
+        console.error(`🚨 MEMORY LIMIT EXCEEDED (${rss}MB) - shutting down safely`);
+        this.isRunning = false;
+        process.exit(1);
       }
+    }, 15000); // Check every 15 seconds
 
-      // Check each player sequentially
-      for (const player of this.players) {
-        const status = await this.pollAndActForPlayer(player);
-        if (status === 'tournament-end') {
-          this.isRunning = false;
-          clearInterval(pollInterval);
-          setTimeout(() => process.exit(0), 2000);
-          return;
+    // Main game loop - poll only one player at a time
+    const gameLoop = async () => {
+      while (this.isRunning) {
+        try {
+          // Only check players if enough time has passed since last action
+          const now = Date.now();
+          if (now - this.lastActionTime < 500) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            continue;
+          }
+
+          // Check each player
+          for (const player of this.players) {
+            if (!this.isRunning) break;
+
+            const status = await this.pollAndActForPlayer(player);
+
+            if (status === 'action-taken') {
+              this.lastActionTime = Date.now();
+            }
+
+            if (status === 'tournament-end') {
+              this.isRunning = false;
+              clearInterval(memoryInterval);
+              setTimeout(() => process.exit(0), 2000);
+              return;
+            }
+
+            // Small delay between checking players
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+
+          // Delay before next poll cycle
+          await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+        } catch (error) {
+          console.error('Game loop error:', error);
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
-    }, POLL_INTERVAL);
+    };
+
+    // Start the loop
+    gameLoop();
 
     // Graceful shutdown
     process.on('SIGINT', () => {
       console.log(`\n👋 Player manager shutting down...\n`);
       this.isRunning = false;
-      clearInterval(pollInterval);
-      process.exit(0);
+      clearInterval(memoryInterval);
+      setTimeout(() => process.exit(0), 1000);
     });
   }
 }

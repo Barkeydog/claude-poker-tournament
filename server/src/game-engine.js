@@ -179,19 +179,23 @@ class GameEngine {
 
       if (action === 'fold') {
         player.status = 'folded';
-        player.lastAction = { action: 'fold', amount: 0 };
+        player.lastAction = { action: 'fold', amount: player.lastAction?.amount || 0 };
       } else if (action === 'call') {
-        const callAmount = Math.min(this.gameState.currentBet - (player.lastAction?.amount || 0), player.chips);
+        const previousBet = player.lastAction?.amount || 0;
+        const callAmount = Math.min(this.gameState.currentBet - previousBet, player.chips);
         player.chips -= callAmount;
         this.gameState.pot += callAmount;
-        player.lastAction = { action: 'call', amount: callAmount };
+        const newTotal = previousBet + callAmount;
+        player.lastAction = { action: 'call', amount: newTotal };
       } else if (action === 'raise') {
-        const totalBet = amount;
-        const raiseAmount = Math.min(totalBet, player.chips);
-        player.chips -= raiseAmount;
-        this.gameState.pot += raiseAmount;
-        this.gameState.currentBet = Math.max(this.gameState.currentBet, raiseAmount);
-        player.lastAction = { action: 'raise', amount: raiseAmount };
+        const previousBet = player.lastAction?.amount || 0;
+        const totalBet = amount; // This is the new total bet amount
+        const additionalChips = Math.min(totalBet - previousBet, player.chips);
+        player.chips -= additionalChips;
+        this.gameState.pot += additionalChips;
+        const newTotal = previousBet + additionalChips;
+        this.gameState.currentBet = Math.max(this.gameState.currentBet, newTotal);
+        player.lastAction = { action: 'raise', amount: newTotal };
       }
 
       // Emit action event (will be picked up by server)
