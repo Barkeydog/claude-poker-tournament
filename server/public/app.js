@@ -42,26 +42,29 @@ function updateGameDisplay(state) {
   document.getElementById('phase').textContent = `Phase: ${state.phase.toUpperCase()}`;
 
   // Update pot
-  document.getElementById('potAmount').textContent = `💰 ${state.pot}`;
+  const potEl = document.getElementById('potAmount');
+  potEl.textContent = `$${state.pot}`;
+  potEl.classList.add('updated');
+  setTimeout(() => potEl.classList.remove('updated'), 400);
 
   // Update community cards
   const communityCardsContainer = document.getElementById('communityCards');
   communityCardsContainer.innerHTML = '';
 
   for (let i = 0; i < 5; i++) {
-    const cardDiv = document.createElement('div');
-    cardDiv.className = 'card';
+    const cardSpan = document.createElement('span');
+    cardSpan.className = 'card';
 
     if (i < state.communityCards.length) {
-      cardDiv.textContent = formatCard(state.communityCards[i]);
+      cardSpan.textContent = formatCard(state.communityCards[i]);
       const suit = state.communityCards[i][1];
-      cardDiv.style.color = cardColor[suit] || 'black';
+      cardSpan.style.color = cardColor[suit] || 'black';
+      cardSpan.classList.add('dealt');
     } else {
-      cardDiv.className = 'card card-empty';
-      cardDiv.textContent = '?';
+      cardSpan.className = 'card card-empty';
     }
 
-    communityCardsContainer.appendChild(cardDiv);
+    communityCardsContainer.appendChild(cardSpan);
   }
 
   // Update players
@@ -71,7 +74,7 @@ function updateGameDisplay(state) {
     if (i < state.players.length) {
       const player = state.players[i];
 
-      playerSlot.classList.remove('active', 'eliminated');
+      playerSlot.classList.remove('active', 'eliminated', 'folded');
 
       if (state.activePlayer === i && state.phase !== 'showdown' && state.phase !== 'waiting') {
         playerSlot.classList.add('active');
@@ -79,6 +82,8 @@ function updateGameDisplay(state) {
 
       if (player.status === 'eliminated') {
         playerSlot.classList.add('eliminated');
+      } else if (player.status === 'folded') {
+        playerSlot.classList.add('folded');
       }
 
       // Update player info
@@ -102,29 +107,28 @@ function updateGameDisplay(state) {
       cardsContainer.innerHTML = '';
 
       for (let j = 0; j < 2; j++) {
-        const cardDiv = document.createElement('div');
+        const cardSpan = document.createElement('span');
 
         if (player.cards && player.cards[j] && player.cards[j] !== '??') {
-          cardDiv.className = 'card';
-          cardDiv.textContent = formatCard(player.cards[j]);
+          cardSpan.className = 'card dealt';
+          cardSpan.textContent = formatCard(player.cards[j]);
           const suit = player.cards[j][1];
-          cardDiv.style.color = cardColor[suit] || 'black';
+          cardSpan.style.color = cardColor[suit] || 'black';
         } else {
-          cardDiv.className = 'card card-back';
-          cardDiv.textContent = '🂠';
+          cardSpan.className = 'card card-hidden';
         }
 
-        cardsContainer.appendChild(cardDiv);
+        cardsContainer.appendChild(cardSpan);
       }
     } else {
-      playerSlot.querySelector('.player-name').textContent = 'Empty';
-      playerSlot.querySelector('.player-chips').textContent = '💰 0';
+      playerSlot.querySelector('.player-name').textContent = 'Waiting...';
+      playerSlot.querySelector('.player-chips').textContent = '—';
       playerSlot.querySelector('.player-status').textContent = '';
 
       const cardsContainer = playerSlot.querySelector('.player-cards');
       cardsContainer.innerHTML = `
-        <div class="card card-back">🂠</div>
-        <div class="card card-back">🂠</div>
+        <span class="card card-hidden"></span>
+        <span class="card card-hidden"></span>
       `;
     }
   }
@@ -134,18 +138,9 @@ function addCommentary(playerName, text, type = 'normal') {
   const feed = document.getElementById('commentaryFeed');
 
   const item = document.createElement('div');
-  item.className = `commentary-item ${type}`;
+  item.className = type === 'system' ? 'commentary-item system-message' : 'commentary-item';
 
-  const playerSpan = document.createElement('span');
-  playerSpan.className = 'commentary-player';
-  playerSpan.textContent = `${playerName}:`;
-
-  const textSpan = document.createElement('span');
-  textSpan.className = 'commentary-text';
-  textSpan.textContent = text;
-
-  item.appendChild(playerSpan);
-  item.appendChild(textSpan);
+  item.innerHTML = `<strong>${playerName}:</strong> ${text}`;
 
   feed.appendChild(item);
   feed.scrollTop = feed.scrollHeight;
@@ -157,21 +152,8 @@ function addActionCommentary(playerName, action, amount, commentary) {
   const item = document.createElement('div');
   item.className = 'commentary-item';
 
-  const playerSpan = document.createElement('span');
-  playerSpan.className = 'commentary-player';
-  playerSpan.textContent = `${playerName}:`;
-
-  const textSpan = document.createElement('span');
-  textSpan.className = 'commentary-text';
-  textSpan.textContent = commentary;
-
-  const actionSpan = document.createElement('span');
-  actionSpan.className = 'commentary-action';
-  actionSpan.textContent = `→ ${action.toUpperCase()}${amount ? ' ' + amount : ''}`;
-
-  item.appendChild(playerSpan);
-  item.appendChild(textSpan);
-  item.appendChild(actionSpan);
+  const actionText = `${action.toUpperCase()}${amount ? ' $' + amount : ''}`;
+  item.innerHTML = `<strong>${playerName}</strong> ${actionText}<br><em>"${commentary}"</em>`;
 
   feed.appendChild(item);
   feed.scrollTop = feed.scrollHeight;
@@ -212,8 +194,8 @@ socket.on('tournament-winner', (data) => {
 
   // Show winner overlay
   document.getElementById('winnerName').textContent = data.name;
-  document.getElementById('winnerChips').textContent = `💰 ${data.chips} Chips`;
-  document.getElementById('winnerOverlay').style.display = 'flex';
+  document.getElementById('winnerChips').textContent = `${data.chips} Chips`;
+  document.getElementById('winnerOverlay').classList.add('show');
 });
 
 // Start button handler

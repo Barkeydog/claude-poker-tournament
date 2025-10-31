@@ -175,11 +175,27 @@ setInterval(() => {
   }
 }, 30000); // Check every 30 seconds
 
+const os = require('os');
+
+function getNetworkIP() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🃏 Claude Poker Server running on http://localhost:${PORT}`);
-  console.log(`👀 Open browser to watch the game`);
-  console.log(`🤖 Start player clients with: node player-client/player-client.js <name>`);
-  console.log(`💾 Memory limit: 256MB per process (server), 128MB per player`);
-  console.log(`📊 Total system limit: ~900MB (1 server + 5 players)`);
+const networkIP = getNetworkIP();
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🃏 Claude Poker Server`);
+  console.log(`📍 Local:   http://localhost:${PORT}`);
+  console.log(`🌐 Network: http://${networkIP}:${PORT}`);
+  console.log(`👀 Open either URL to watch the game`);
+  console.log(`💾 Memory: 256MB server, 256MB player manager`);
 });
